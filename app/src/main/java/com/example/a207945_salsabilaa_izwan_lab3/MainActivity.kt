@@ -278,6 +278,13 @@ fun InfoCardItem(title: String, subtitle: String, accent: Color, bg: Color, bord
         border = BorderStroke(1.2.dp, border)
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(modifier = Modifier.width(6.dp).height(45.dp).clip(RoundedCornerShape(3.dp)).background(accent))
+                Column(modifier = Modifier.padding(start = 16.dp)) {
+                    Text(text = title, color = accent, fontSize = 15.sp, fontWeight = FontWeight.Bold)
+                    Text(text = subtitle, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 13.sp)
+                }
+            }
             if (expanded) { // Task 3 [cite: 18]
                 Text(
                     text = "More details for $title: No pending tasks.",
@@ -286,14 +293,6 @@ fun InfoCardItem(title: String, subtitle: String, accent: Color, bg: Color, bord
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Box(modifier = Modifier.width(6.dp).height(45.dp).clip(RoundedCornerShape(3.dp)).background(accent))
-                Column(modifier = Modifier.padding(start = 16.dp)) {
-                    Text(text = title, color = accent, fontSize = 15.sp, fontWeight = FontWeight.Bold)
-                    Text(text = subtitle, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 13.sp)
-                }
-            }
-
         }
     }
 }
