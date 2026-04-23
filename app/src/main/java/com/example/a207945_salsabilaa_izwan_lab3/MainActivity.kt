@@ -39,18 +39,33 @@ fun StudyMateApp(viewModel: StudyMateViewModel = viewModel()) {
     val currentDestination = navBackStackEntry?.destination?.route
 
     val mainBgGradient = Brush.linearGradient(listOf(MaterialTheme.colorScheme.primaryContainer, MaterialTheme.colorScheme.surface, MaterialTheme.colorScheme.secondaryContainer, MaterialTheme.colorScheme.surface, MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.1f)))
-    val liquidGlassBg = Brush.linearGradient(listOf(MaterialTheme.colorScheme.surface.copy(alpha = 0.80f), MaterialTheme.colorScheme.surface.copy(alpha = 0.50f)))
-    val liquidGlassBorder = Brush.linearGradient(listOf(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.20f), MaterialTheme.colorScheme.surface.copy(alpha = 0.4f), MaterialTheme.colorScheme.onSurface.copy(alpha = 0.20f)))
+    val glassBg = Brush.linearGradient(listOf(MaterialTheme.colorScheme.surface.copy(alpha = 0.8f), MaterialTheme.colorScheme.surface.copy(alpha = 0.5f)))
+    val glassBorder = Brush.linearGradient(listOf(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.2f), MaterialTheme.colorScheme.surface.copy(alpha = 0.4f), MaterialTheme.colorScheme.onSurface.copy(alpha = 0.2f)))
 
     Box(Modifier.fillMaxSize().background(mainBgGradient)) {
         NavHost(navController, Screen.Home.route, Modifier.fillMaxSize()) {
-            composable(Screen.Home.route) { ScreenWrapper { HomeScreen(liquidGlassBg, liquidGlassBorder, viewModel) } }
-            composable(Screen.History.route) { ScreenWrapper { HistoryScreen(liquidGlassBg, liquidGlassBorder) } }
-            composable(Screen.Profile.route) { ScreenWrapper { ProfileScreen(liquidGlassBg, liquidGlassBorder, viewModel) } }
+            composable(Screen.Home.route) {
+                Column(Modifier.fillMaxSize().padding(horizontal = 24.dp).verticalScroll(rememberScrollState())) {
+                    HomeScreen(glassBg, glassBorder, viewModel)
+                    Box(Modifier.height(160.dp))
+                }
+            }
+            composable(Screen.History.route) {
+                Column(Modifier.fillMaxSize().padding(horizontal = 24.dp).verticalScroll(rememberScrollState())) {
+                    HistoryScreen(glassBg, glassBorder)
+                    Box(Modifier.height(160.dp))
+                }
+            }
+            composable(Screen.Profile.route) {
+                Column(Modifier.fillMaxSize().padding(horizontal = 24.dp).verticalScroll(rememberScrollState())) {
+                    ProfileScreen(glassBg, glassBorder, viewModel)
+                    Box(Modifier.height(160.dp))
+                }
+            }
         }
 
         Box(Modifier.align(Alignment.BottomCenter).padding(bottom = 30.dp).width(330.dp).height(75.dp)) {
-            Box(Modifier.fillMaxSize().clip(RoundedCornerShape(38.dp)).background(MaterialTheme.colorScheme.surface.copy(alpha = 0.98f)).border(1.2.dp, liquidGlassBorder, RoundedCornerShape(38.dp)))
+            Box(Modifier.fillMaxSize().clip(RoundedCornerShape(38.dp)).background(MaterialTheme.colorScheme.surface.copy(alpha = 0.98f)).border(1.2.dp, glassBorder, RoundedCornerShape(38.dp)))
             Row(Modifier.fillMaxSize(), Arrangement.SpaceAround, Alignment.CenterVertically) {
                 listOf(Screen.History, Screen.Home, Screen.Profile).forEach { screen ->
                     NavBarItem(screen.label, screen.icon, currentDestination == screen.route) {
@@ -59,13 +74,5 @@ fun StudyMateApp(viewModel: StudyMateViewModel = viewModel()) {
                 }
             }
         }
-    }
-}
-
-@Composable
-fun ScreenWrapper(content: @Composable () -> Unit) {
-    Column(Modifier.fillMaxSize().padding(horizontal = 24.dp).verticalScroll(rememberScrollState())) {
-        content()
-        Box(Modifier.height(160.dp))
     }
 }

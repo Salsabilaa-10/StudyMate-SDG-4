@@ -18,10 +18,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
-/**
- * Shared navigation bar item component.
- * Fixed layout using Box stacking to ensure labels never disappear when selected.
- */
 @Composable
 fun NavBarItem(label: String, icon: String, isSelected: Boolean = false, onClick: () -> Unit) {
     // Reduced offset to bring bubble closer to the text
