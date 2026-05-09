@@ -22,6 +22,8 @@ sealed class Screen(val route: String, val label: String, val icon: String) {
     object Home : Screen("home", "Home", "🏠")
     object History : Screen("history", "History", "📚")
     object Profile : Screen("profile", "Profile", "👤")
+    object AddTask : Screen("add_task", "Add Task", "➕")
+    object AddExam : Screen("add_exam", "Add Exam", "📝")
 }
 
 class MainActivity : ComponentActivity() {
@@ -46,13 +48,19 @@ fun StudyMateApp(viewModel: StudyMateViewModel = viewModel()) {
         NavHost(navController, Screen.Home.route, Modifier.fillMaxSize()) {
             composable(Screen.Home.route) {
                 Column(Modifier.fillMaxSize().padding(horizontal = 24.dp).verticalScroll(rememberScrollState())) {
-                    HomeScreen(glassBg, glassBorder, viewModel)
+                    HomeScreen(
+                        liquidGlassBg = glassBg, 
+                        liquidGlassBorder = glassBorder, 
+                        viewModel = viewModel,
+                        onAddTaskClick = { navController.navigate(Screen.AddTask.route) },
+                        onAddExamClick = { navController.navigate(Screen.AddExam.route) }
+                    )
                     Box(Modifier.height(160.dp))
                 }
             }
             composable(Screen.History.route) {
                 Column(Modifier.fillMaxSize().padding(horizontal = 24.dp).verticalScroll(rememberScrollState())) {
-                    HistoryScreen(glassBg, glassBorder)
+                    HistoryScreen(glassBg, glassBorder, viewModel)
                     Box(Modifier.height(160.dp))
                 }
             }
@@ -60,6 +68,16 @@ fun StudyMateApp(viewModel: StudyMateViewModel = viewModel()) {
                 Column(Modifier.fillMaxSize().padding(horizontal = 24.dp).verticalScroll(rememberScrollState())) {
                     ProfileScreen(glassBg, glassBorder, viewModel)
                     Box(Modifier.height(160.dp))
+                }
+            }
+            composable(Screen.AddTask.route) {
+                AddTaskScreen(viewModel) {
+                    navController.popBackStack()
+                }
+            }
+            composable(Screen.AddExam.route) {
+                AddExamScreen(viewModel) {
+                    navController.popBackStack()
                 }
             }
         }

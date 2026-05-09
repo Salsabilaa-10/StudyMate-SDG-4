@@ -24,7 +24,13 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
 @Composable
-fun HistoryScreen(liquidGlassBg: Brush, liquidGlassBorder: Brush) {
+fun HistoryScreen(
+    liquidGlassBg: Brush, 
+    liquidGlassBorder: Brush,
+    viewModel: StudyMateViewModel // Added ViewModel parameter
+) {
+    val tasks by viewModel.tasks.collectAsState() // Observe tasks
+    val exams by viewModel.exams.collectAsState() // Observe exams
     val textPrimary = MaterialTheme.colorScheme.onBackground
     val textSecondary = MaterialTheme.colorScheme.onSurfaceVariant
     var selectedFilter by remember { mutableStateOf("All") }
@@ -34,10 +40,18 @@ fun HistoryScreen(liquidGlassBg: Brush, liquidGlassBorder: Brush) {
         Text(text = "Your recent study activity", color = textSecondary, fontSize = 14.sp, modifier = Modifier.padding(bottom = 24.dp))
 
         // Stats Cards
-        Row(modifier = Modifier.fillMaxWidth().padding(bottom = 24.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            StatCard("12", "Flashcard sets", Modifier.weight(1f), liquidGlassBorder)
-            StatCard("5", "AI Chats", Modifier.weight(1f), liquidGlassBorder)
-            StatCard("3", "Exams added", Modifier.weight(1f), liquidGlassBorder)
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(bottom = 24.dp)
+                .horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            StatCard(tasks.size.toString(), "Tasks", Modifier.width(100.dp), liquidGlassBorder)
+            StatCard(exams.size.toString(), "Exams", Modifier.width(100.dp), liquidGlassBorder)
+            StatCard("5", "AI Chat", Modifier.width(100.dp), liquidGlassBorder)
+            StatCard("12", "Flashcards", Modifier.width(100.dp), liquidGlassBorder)
+            StatCard("0", "Classes", Modifier.width(100.dp), liquidGlassBorder)
         }
 
         // Filters
@@ -45,7 +59,7 @@ fun HistoryScreen(liquidGlassBg: Brush, liquidGlassBorder: Brush) {
             modifier = Modifier.fillMaxWidth().padding(bottom = 20.dp).horizontalScroll(rememberScrollState()),
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            listOf("All", "Flashcards", "AI Chat", "Exams").forEach { filter ->
+            listOf("All", "AI Flashcard", "AI Chat", "Exam", "Class", "Task").forEach { filter ->
                 FilterPill(filter, isSelected = selectedFilter == filter, onClick = { selectedFilter = filter }, liquidGlassBorder)
             }
         }
@@ -58,28 +72,83 @@ fun HistoryScreen(liquidGlassBg: Brush, liquidGlassBorder: Brush) {
             border = BorderStroke(1.dp, liquidGlassBorder)
         ) {
             Column {
-                HistoryItemRow("Data Structures ...", "Today · 20 cards generated", "Flashcard", MaterialTheme.colorScheme.primaryContainer, true)
-                HistoryItemRow("Explain Binary Se...", "Yesterday · AI Chat", "AI Chat", MaterialTheme.colorScheme.secondaryContainer, true)
-                HistoryItemRow("Mobile Programmin...", "2 days ago · Exam added", "Exam", MaterialTheme.colorScheme.tertiaryContainer, true)
-                HistoryItemRow("OOP Concepts F...", "3 days ago · 15 cards", "Flashcard", MaterialTheme.colorScheme.primaryContainer, false)
+                val combinedHistory = remember(tasks, exams, selectedFilter) {
+                    val list = mutableListOf<HistoryItem>()
+                    
+                    // Add Tasks
+                    if (selectedFilter == "All" || selectedFilter == "Task") {
+                        tasks.forEach { list.add(HistoryItem(it.title, "${it.dueDate} · ${it.dueTime}", "Task")) }
+                    }
+                    
+                    // Add Exams
+                    if (selectedFilter == "All" || selectedFilter == "Exam") {
+                        exams.forEach { list.add(HistoryItem(it.subject, "${it.date} · Exam added", "Exam")) }
+                    }
+
+                    // Mock data for other categories
+                    if (selectedFilter == "All" || selectedFilter == "AI Flashcard") {
+                        list.add(HistoryItem("Data Structures", "Today · 20 cards generated", "AI Flashcard"))
+                    }
+                    if (selectedFilter == "All" || selectedFilter == "AI Chat") {
+                        list.add(HistoryItem("Explain Binary Search", "Yesterday · AI Chat", "AI Chat"))
+                    }
+                    
+                    list.reversed() 
+                }
+
+                if (combinedHistory.isEmpty()) {
+                    Box(modifier = Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) {
+                        Text("No items found for $selectedFilter", color = textSecondary)
+                    }
+                } else {
+                    combinedHistory.forEachIndexed { index, item ->
+                        val badgeBg = when (item.type) {
+                            "Task" -> MaterialTheme.colorScheme.primaryContainer
+                            "Exam" -> MaterialTheme.colorScheme.tertiaryContainer
+                            "AI Flashcard" -> MaterialTheme.colorScheme.primaryContainer
+                            "AI Chat" -> MaterialTheme.colorScheme.secondaryContainer
+                            "Class" -> MaterialTheme.colorScheme.secondaryContainer
+                            else -> MaterialTheme.colorScheme.surfaceVariant
+                        }
+                        
+                        val emoji = when (item.type) {
+                            "Task" -> "📌"
+                            "Exam" -> "📝"
+                            "AI Flashcard" -> "📚"
+                            "AI Chat" -> "💬"
+                            "Class" -> "🏫"
+                            else -> "📄"
+                        }
+
+                        HistoryItemRow(
+                            title = item.title, 
+                            subtitle = item.subtitle, 
+                            type = item.type, 
+                            badgeBg = badgeBg, 
+                            emoji = emoji,
+                            showDivider = index < combinedHistory.size - 1
+                        )
+                    }
+                }
             }
         }
     }
 }
 
+data class HistoryItem(
+    val title: String,
+    val subtitle: String,
+    val type: String
+)
+
 @Composable
-fun HistoryItemRow(title: String, subtitle: String, type: String, badgeBg: Color, showDivider: Boolean) {
+fun HistoryItemRow(title: String, subtitle: String, type: String, badgeBg: Color, emoji: String, showDivider: Boolean) {
     Column {
         Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
             Box(
                 modifier = Modifier.size(50.dp).clip(RoundedCornerShape(14.dp)).background(badgeBg.copy(alpha = 0.3f)),
                 contentAlignment = Alignment.Center
             ) {
-                val emoji = when (type) {
-                    "Flashcard" -> "📚"
-                    "AI Chat" -> "💬"
-                    else -> "📝"
-                }
                 Text(text = emoji, fontSize = 22.sp)
             }
             Column(modifier = Modifier.padding(start = 16.dp).weight(1f)) {

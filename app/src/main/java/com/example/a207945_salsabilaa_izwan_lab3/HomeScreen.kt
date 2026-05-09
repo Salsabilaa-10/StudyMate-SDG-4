@@ -23,18 +23,25 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import java.text.SimpleDateFormat
+import java.util.*
 
 @Composable
 fun HomeScreen(
     liquidGlassBg: Brush, 
     liquidGlassBorder: Brush, 
-    viewModel: StudyMateViewModel // Added ViewModel parameter
+    viewModel: StudyMateViewModel, // Added ViewModel parameter
+    onAddTaskClick: () -> Unit = {}, // Added callback
+    onAddExamClick: () -> Unit = {} // Added callback
 ) {
     val userData by viewModel.userData.collectAsState() // Observe ViewModel state
+    val tasks by viewModel.tasks.collectAsState() // Observe tasks
+    val exams by viewModel.exams.collectAsState() // Observe exams
 
     val textPrimary = MaterialTheme.colorScheme.onBackground
     val textSecondary = MaterialTheme.colorScheme.onSurfaceVariant
@@ -44,6 +51,39 @@ fun HomeScreen(
     val examAccent = MaterialTheme.colorScheme.primary
     val classAccent = MaterialTheme.colorScheme.secondary
     val assignmentAccent = MaterialTheme.colorScheme.tertiary
+
+    // Dynamic Date Logic using Calendar (Safe for API 24)
+    val calendar = Calendar.getInstance()
+    val dateFormatter = SimpleDateFormat("EEEE, MMM d", Locale.getDefault())
+    val formattedDate = dateFormatter.format(calendar.time)
+
+    // Calculate current week (Monday to Sunday)
+    val todayDate = calendar.get(Calendar.DATE)
+    val todayMonth = calendar.get(Calendar.MONTH)
+    val todayYear = calendar.get(Calendar.YEAR)
+
+    // Set to Monday of current week
+    calendar.set(Calendar.DAY_OF_WEEK, Calendar.MONDAY)
+    val weekDays = (0..6).map { _ ->
+        val dayName = when (calendar.get(Calendar.DAY_OF_WEEK)) {
+            Calendar.MONDAY -> "M"
+            Calendar.TUESDAY -> "T"
+            Calendar.WEDNESDAY -> "W"
+            Calendar.THURSDAY -> "T"
+            Calendar.FRIDAY -> "F"
+            Calendar.SATURDAY -> "S"
+            Calendar.SUNDAY -> "S"
+            else -> ""
+        }
+        val dayDate = calendar.get(Calendar.DATE).toString()
+        val isToday = calendar.get(Calendar.DATE) == todayDate && 
+                      calendar.get(Calendar.MONTH) == todayMonth && 
+                      calendar.get(Calendar.YEAR) == todayYear
+        
+        val result = Triple(dayName, dayDate, isToday)
+        calendar.add(Calendar.DATE, 1)
+        result
+    }
 
     Column {
         // Header
@@ -88,7 +128,7 @@ fun HomeScreen(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(text = "Thursday, Apr 9", color = textPrimary, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
+            Text(text = formattedDate, color = textPrimary, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
             Box(
                 modifier = Modifier.clip(RoundedCornerShape(20.dp)).background(liquidGlassBg)
                     .border(1.2.dp, liquidGlassBorder, RoundedCornerShape(20.dp))
@@ -103,25 +143,155 @@ fun HomeScreen(
             modifier = Modifier.fillMaxWidth().padding(bottom = 20.dp).horizontalScroll(rememberScrollState()),
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            val days = listOf("M" to "6", "T" to "7", "W" to "8", "T" to "9", "F" to "10", "S" to "11", "S" to "12")
-            days.forEach { (day, date) ->
+            weekDays.forEach { (day, date, isToday) ->
                 Box(
                     modifier = Modifier.width(42.dp).height(65.dp).clip(RoundedCornerShape(12.dp))
-                        .background(liquidGlassBg).border(1.2.dp, liquidGlassBorder, RoundedCornerShape(12.dp)),
+                        .background(if (isToday) SolidColor(MaterialTheme.colorScheme.primary.copy(alpha = 0.2f)) else liquidGlassBg)
+                        .border(1.2.dp, if (isToday) SolidColor(MaterialTheme.colorScheme.primary) else liquidGlassBorder, RoundedCornerShape(12.dp)),
                     contentAlignment = Alignment.Center
                 ) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text(text = day, color = textSecondary, fontSize = 12.sp)
-                        Text(text = date, color = textPrimary, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                        Text(text = day, color = if (isToday) MaterialTheme.colorScheme.primary else textSecondary, fontSize = 12.sp)
+                        Text(text = date, color = if (isToday) MaterialTheme.colorScheme.primary else textPrimary, fontSize = 14.sp, fontWeight = FontWeight.Bold)
                     }
                 }
             }
         }
 
         // Info Cards
-        InfoCardItem("Upcoming Exam", "No exam yet", examAccent, MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.75f), liquidGlassBorder)
+        if (exams.isNotEmpty()) {
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 14.dp),
+                shape = RoundedCornerShape(20.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.8f)),
+                border = BorderStroke(1.2.dp, liquidGlassBorder)
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    exams.forEachIndexed { index, exam ->
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.padding(bottom = if (index < exams.size - 1) 16.dp else 0.dp)
+                        ) {
+                            // Vertical Accent Bar (Taller like in photo)
+                            Box(
+                                modifier = Modifier
+                                    .width(5.dp)
+                                    .height(60.dp)
+                                    .clip(RoundedCornerShape(3.dp))
+                                    .background(examAccent)
+                            )
+                            
+                            Column(modifier = Modifier.padding(start = 16.dp)) {
+                                Text(
+                                    text = "Upcoming Exam", 
+                                    color = examAccent, 
+                                    fontSize = 12.sp, 
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Text(
+                                    text = exam.subject, 
+                                    color = textPrimary, 
+                                    fontSize = 20.sp, 
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Text(
+                                    text = exam.date, 
+                                    color = textSecondary, 
+                                    fontSize = 14.sp
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        } else {
+            InfoCardItem(
+                title = "Upcoming Exam", 
+                subtitle = "No exam yet", 
+                accent = examAccent, 
+                bg = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.75f), 
+                border = liquidGlassBorder
+            )
+        }
         InfoCardItem("Today's Clases", "No clases today", classAccent, MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.75f), liquidGlassBorder)
-        InfoCardItem("Upcoming Assignments", "No assignments yet", assignmentAccent, MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.75f), liquidGlassBorder)
+        
+        InfoCardItem(
+            title = "Upcoming Assignments", 
+            subtitle = if (tasks.isEmpty()) "No tasks for now" else "${tasks.size} assignments pending",
+            accent = assignmentAccent, 
+            bg = MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.75f), 
+            border = liquidGlassBorder,
+            initiallyExpanded = true,
+            content = {
+                if (tasks.isNotEmpty()) {
+                    val sdf = remember { SimpleDateFormat("EEEE, d MMMM yyyy", Locale.getDefault()) }
+                    val displayDateFormat = remember { SimpleDateFormat("d MMM", Locale.getDefault()) }
+                    val today = remember { 
+                        Calendar.getInstance().apply { 
+                            set(Calendar.HOUR_OF_DAY, 0)
+                            set(Calendar.MINUTE, 0)
+                            set(Calendar.SECOND, 0)
+                            set(Calendar.MILLISECOND, 0)
+                        }.time
+                    }
+                    tasks.forEach { task ->
+                        val taskDate = remember(task.dueDate) { 
+                            try { sdf.parse(task.dueDate) } catch (e: Exception) { null }
+                        }
+                        
+                        val errorContainer = MaterialTheme.colorScheme.errorContainer
+                        val error = MaterialTheme.colorScheme.error
+                        val secondaryContainer = MaterialTheme.colorScheme.secondaryContainer
+                        val secondary = MaterialTheme.colorScheme.secondary
+                        val primaryContainer = MaterialTheme.colorScheme.primaryContainer
+                        val primary = MaterialTheme.colorScheme.primary
+
+                        val labelInfo = remember(taskDate, errorContainer, error, secondaryContainer, secondary, primaryContainer, primary) {
+                            if (taskDate != null) {
+                                val diff = taskDate.time - today.time
+                                val days = (diff / (1000 * 60 * 60 * 24)).toInt()
+                                val formattedDate = displayDateFormat.format(taskDate)
+                                when {
+                                    days == 0 -> Triple(errorContainer.copy(alpha = 0.3f), error, formattedDate)
+                                    days == 1 -> Triple(secondaryContainer.copy(alpha = 0.4f), secondary, formattedDate)
+                                    days > 1 -> Triple(secondaryContainer.copy(alpha = 0.4f), secondary, formattedDate)
+                                    else -> Triple(primaryContainer.copy(alpha = 0.4f), primary, formattedDate)
+                                }
+                            } else {
+                                Triple(primaryContainer.copy(alpha = 0.4f), primary, "Upcoming")
+                            }
+                        }
+
+                        val (pillBg, pillColor, label) = labelInfo
+
+                        Row(
+                            modifier = Modifier.padding(top = 10.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .background(pillBg)
+                                    .padding(horizontal = 12.dp, vertical = 5.dp)
+                            ) {
+                                Text(text = label, color = pillColor, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                            }
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Column {
+                                Text(text = task.title, color = textPrimary, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+                                if (task.dueTime.isNotBlank()) {
+                                    Text(text = task.dueTime, color = textSecondary, fontSize = 11.sp)
+                                }
+                            }
+                        }
+                    }
+                } else {
+                    Text(text = "No pending tasks.", modifier = Modifier.padding(top = 8.dp), fontSize = 12.sp, color = textSecondary)
+                }
+            }
+        )
 
         Text(
             text = "Quick Actions", color = textPrimary, fontSize = 18.sp, fontWeight = FontWeight.Bold,
@@ -131,11 +301,17 @@ fun HomeScreen(
         // Action Boxes
         Row(modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp)) {
             ActionBox("📚", "AI Flashcard", MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.85f), liquidGlassBorder, Modifier.weight(1f).padding(end = 8.dp))
-            ActionBox("📝", "Add Exam", MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.85f), liquidGlassBorder, Modifier.weight(1f).padding(start = 8.dp))
+            ActionBox(
+                "📝", "Add Exam", MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.85f), liquidGlassBorder, 
+                Modifier.weight(1f).padding(start = 8.dp).clickable { onAddExamClick() }
+            )
         }
         Row(modifier = Modifier.fillMaxWidth().padding(bottom = 20.dp)) {
             ActionBox("🏫", "Add Class", MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.85f), liquidGlassBorder, Modifier.weight(1f).padding(end = 8.dp))
-            ActionBox("📌", "Add Task", MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.85f), liquidGlassBorder, Modifier.weight(1f).padding(start = 8.dp))
+            ActionBox(
+                "📌", "Add Task", MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.85f), liquidGlassBorder, 
+                Modifier.weight(1f).padding(start = 8.dp).clickable { onAddTaskClick() }
+            )
         }
 
         // Search Box
@@ -190,8 +366,23 @@ fun HomeScreen(
 }
 
 @Composable
-fun InfoCardItem(title: String, subtitle: String, accent: Color, bg: Color, border: Brush) {
-    var expanded by remember { mutableStateOf(false) }
+fun InfoCardItem(
+    title: String, 
+    subtitle: String, 
+    accent: Color, 
+    bg: Color, 
+    border: Brush,
+    initiallyExpanded: Boolean = false,
+    content: @Composable () -> Unit = {
+        Text(
+            text = "More details for $title: No pending tasks.",
+            modifier = Modifier.padding(top = 8.dp),
+            fontSize = 12.sp,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    }
+) {
+    var expanded by remember { mutableStateOf(initiallyExpanded) }
 
     Card(
         modifier = Modifier
@@ -212,12 +403,7 @@ fun InfoCardItem(title: String, subtitle: String, accent: Color, bg: Color, bord
                 }
             }
             if (expanded) {
-                Text(
-                    text = "More details for $title: No pending tasks.",
-                    modifier = Modifier.padding(top = 8.dp),
-                    fontSize = 12.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+                content()
             }
         }
     }

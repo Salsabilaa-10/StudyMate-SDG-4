@@ -69,3 +69,15 @@ fun NavBarItem(label: String, icon: String, isSelected: Boolean = false, onClick
         )
     }
 }
+
+@Composable
+fun LabelText(text: String) {
+    Text(
+        text = text,
+        fontSize = 12.sp,
+        fontWeight = FontWeight.Bold,
+        color = MaterialTheme.colorScheme.primary,
+        modifier = Modifier.padding(bottom = 8.dp)
+    )
+}
+
