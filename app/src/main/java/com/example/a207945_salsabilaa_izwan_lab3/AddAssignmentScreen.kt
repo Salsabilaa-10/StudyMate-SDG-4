@@ -19,17 +19,25 @@ import java.util.*
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun AddTaskScreen(viewModel: StudyMateViewModel, onBack: () -> Unit) {
-    var title by remember { mutableStateOf("") }
-    var dueDate by remember { mutableStateOf("") }
-    var dueTime by remember { mutableStateOf("") }
-    var amPm by remember { mutableStateOf("AM") }
+    val editingTask = viewModel.editingAssignment
+    
+    var title by remember { mutableStateOf(editingTask?.title ?: "") }
+    var dueDate by remember { mutableStateOf(editingTask?.dueDate ?: "") }
+    
+    val initialTimeParts = editingTask?.dueTime?.split(" ")
+    var dueTime by remember { mutableStateOf(initialTimeParts?.getOrNull(0) ?: "09:00") }
+    var amPm by remember { mutableStateOf(initialTimeParts?.getOrNull(1) ?: "AM") }
     var expandedTime by remember { mutableStateOf(false) }
     
     // Subject State
     var subjects by remember { mutableStateOf(listOf("Mobile Programming", "Software Eng.", "Database")) }
-    var selectedSubject by remember { mutableStateOf("Mobile Programming") }
+    var selectedSubject by remember { mutableStateOf(editingTask?.subject ?: "Mobile Programming") }
     var showAddSubjectDialog by remember { mutableStateOf(false) }
     var newSubjectName by remember { mutableStateOf("") }
+
+    if (editingTask != null && !subjects.contains(editingTask.subject)) {
+        subjects = subjects + editingTask.subject
+    }
 
     // Date Picker State
     var showDatePicker by remember { mutableStateOf(false) }
@@ -66,7 +74,6 @@ fun AddTaskScreen(viewModel: StudyMateViewModel, onBack: () -> Unit) {
     }
 
     if (showDatePicker) {
-        // ... (DatePickerDialog remains the same)
         DatePickerDialog(
             onDismissRequest = { showDatePicker = false },
             confirmButton = {
@@ -100,19 +107,22 @@ fun AddTaskScreen(viewModel: StudyMateViewModel, onBack: () -> Unit) {
             color = MaterialTheme.colorScheme.primary,
             fontSize = 16.sp,
             fontWeight = FontWeight.Bold,
-            modifier = Modifier.clickable { onBack() }
+            modifier = Modifier.clickable { 
+                viewModel.editingAssignment = null
+                onBack() 
+            }
         )
 
         Spacer(modifier = Modifier.height(24.dp))
 
         Text(
-            text = "Add Task",
+            text = if (editingTask != null) "Edit Task" else "Add Task",
             fontSize = 32.sp,
             fontWeight = FontWeight.Bold,
             color = MaterialTheme.colorScheme.primary
         )
         Text(
-            text = "Fill in the details below",
+            text = if (editingTask != null) "Update your task details" else "Fill in the details below",
             fontSize = 16.sp,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
@@ -178,7 +188,7 @@ fun AddTaskScreen(viewModel: StudyMateViewModel, onBack: () -> Unit) {
 
         Spacer(modifier = Modifier.height(20.dp))
 
-        // Time Section
+        // Time Section (MANUAL TYPE)
         LabelText("DUE TIME")
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -189,7 +199,7 @@ fun AddTaskScreen(viewModel: StudyMateViewModel, onBack: () -> Unit) {
                 onValueChange = { if (it.length <= 5) dueTime = it },
                 modifier = Modifier.weight(1f),
                 shape = RoundedCornerShape(12.dp),
-                placeholder = { Text("e.g. 11:59") },
+                placeholder = { Text("e.g. 09:00") },
                 colors = OutlinedTextFieldDefaults.colors(
                     focusedBorderColor = MaterialTheme.colorScheme.primary,
                     unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant
@@ -236,7 +246,16 @@ fun AddTaskScreen(viewModel: StudyMateViewModel, onBack: () -> Unit) {
         Button(
             onClick = {
                 if (title.isNotEmpty()) {
-                    viewModel.addTask(Task(title, selectedSubject, dueDate, "$dueTime $amPm"))
+                    viewModel.addTask(
+                        AssignmentEntity(
+                            id = editingTask?.id ?: 0,
+                            title = title,
+                            subject = selectedSubject,
+                            dueDate = dueDate,
+                            dueTime = "$dueTime $amPm"
+                        )
+                    )
+                    viewModel.editingAssignment = null
                     onBack()
                 }
             },
@@ -250,7 +269,10 @@ fun AddTaskScreen(viewModel: StudyMateViewModel, onBack: () -> Unit) {
         Spacer(modifier = Modifier.height(12.dp))
 
         OutlinedButton(
-            onClick = { onBack() },
+            onClick = { 
+                viewModel.editingAssignment = null
+                onBack() 
+            },
             modifier = Modifier.fillMaxWidth().height(56.dp),
             shape = RoundedCornerShape(16.dp),
             border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.3f))

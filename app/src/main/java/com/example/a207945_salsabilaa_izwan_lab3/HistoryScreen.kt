@@ -27,7 +27,9 @@ import androidx.compose.ui.unit.sp
 fun HistoryScreen(
     liquidGlassBg: Brush, 
     liquidGlassBorder: Brush,
-    viewModel: StudyMateViewModel // Added ViewModel parameter
+    viewModel: StudyMateViewModel,
+    onEditTask: () -> Unit = {},
+    onEditExam: () -> Unit = {}
 ) {
     val tasks by viewModel.tasks.collectAsState() // Observe tasks
     val exams by viewModel.exams.collectAsState() // Observe exams
@@ -77,12 +79,12 @@ fun HistoryScreen(
                     
                     // Add Tasks
                     if (selectedFilter == "All" || selectedFilter == "Task") {
-                        tasks.forEach { list.add(HistoryItem(it.title, "${it.dueDate} · ${it.dueTime}", "Task")) }
+                        tasks.forEach { list.add(HistoryItem(it.title, "${it.dueDate} · ${it.dueTime}", "Task", originalAssignment = it)) }
                     }
                     
                     // Add Exams
                     if (selectedFilter == "All" || selectedFilter == "Exam") {
-                        exams.forEach { list.add(HistoryItem(it.subject, "${it.date} · Exam added", "Exam")) }
+                        exams.forEach { list.add(HistoryItem(it.subject, "${it.date} · Exam added", "Exam", originalExam = it)) }
                     }
 
                     // Mock data for other categories
@@ -126,7 +128,23 @@ fun HistoryScreen(
                             type = item.type, 
                             badgeBg = badgeBg, 
                             emoji = emoji,
-                            showDivider = index < combinedHistory.size - 1
+                            showDivider = index < combinedHistory.size - 1,
+                            onEdit = {
+                                if (item.originalAssignment != null) {
+                                    viewModel.editingAssignment = item.originalAssignment
+                                    onEditTask()
+                                } else if (item.originalExam != null) {
+                                    viewModel.editingExam = item.originalExam
+                                    onEditExam()
+                                }
+                            },
+                            onDelete = {
+                                if (item.originalAssignment != null) {
+                                    viewModel.deleteTask(item.originalAssignment)
+                                } else if (item.originalExam != null) {
+                                    viewModel.deleteExam(item.originalExam)
+                                }
+                            }
                         )
                     }
                 }
@@ -138,11 +156,22 @@ fun HistoryScreen(
 data class HistoryItem(
     val title: String,
     val subtitle: String,
-    val type: String
+    val type: String,
+    val originalAssignment: AssignmentEntity? = null,
+    val originalExam: ExamEntity? = null
 )
 
 @Composable
-fun HistoryItemRow(title: String, subtitle: String, type: String, badgeBg: Color, emoji: String, showDivider: Boolean) {
+fun HistoryItemRow(
+    title: String, 
+    subtitle: String, 
+    type: String, 
+    badgeBg: Color, 
+    emoji: String, 
+    showDivider: Boolean,
+    onEdit: () -> Unit = {},
+    onDelete: () -> Unit = {}
+) {
     Column {
         Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
             Box(
@@ -155,6 +184,15 @@ fun HistoryItemRow(title: String, subtitle: String, type: String, badgeBg: Color
                 Text(text = title, color = MaterialTheme.colorScheme.onSurface, fontSize = 16.sp, fontWeight = FontWeight.Bold)
                 Text(text = subtitle, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 13.sp)
             }
+            
+            // Action Buttons (Only for Task and Exam types which have real entities)
+            if (type == "Task" || type == "Exam") {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text("✏️", modifier = Modifier.clickable { onEdit() }.padding(8.dp))
+                    Text("🗑️", modifier = Modifier.clickable { onDelete() }.padding(8.dp))
+                }
+            }
+
             Box(
                 modifier = Modifier
                     .clip(RoundedCornerShape(10.dp))

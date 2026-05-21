@@ -18,12 +18,14 @@ import java.util.*
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AddExamScreen(viewModel: StudyMateViewModel, onBack: () -> Unit) {
-    var subject by remember { mutableStateOf("") }
-    var examType by remember { mutableStateOf("Final") }
-    var examDate by remember { mutableStateOf("") }
-    var startTime by remember { mutableStateOf("9:00 AM") }
-    var endTime by remember { mutableStateOf("11:00 AM") }
-    var venue by remember { mutableStateOf("") }
+    val editingExam = viewModel.editingExam
+
+    var subject by remember { mutableStateOf(editingExam?.subject ?: "") }
+    var examType by remember { mutableStateOf(editingExam?.type ?: "Final") }
+    var examDate by remember { mutableStateOf(editingExam?.date ?: "") }
+    var startTime by remember { mutableStateOf(editingExam?.startTime ?: "09:00 AM") }
+    var endTime by remember { mutableStateOf(editingExam?.endTime ?: "11:00 AM") }
+    var venue by remember { mutableStateOf(editingExam?.venue ?: "") }
     var setReminder by remember { mutableStateOf(true) }
 
     var showDatePicker by remember { mutableStateOf(false) }
@@ -62,19 +64,22 @@ fun AddExamScreen(viewModel: StudyMateViewModel, onBack: () -> Unit) {
             color = MaterialTheme.colorScheme.primary,
             fontSize = 16.sp,
             fontWeight = FontWeight.Bold,
-            modifier = Modifier.clickable { onBack() }
+            modifier = Modifier.clickable { 
+                viewModel.editingExam = null
+                onBack() 
+            }
         )
 
         Spacer(modifier = Modifier.height(24.dp))
 
         Text(
-            text = "Add Exam",
+            text = if (editingExam != null) "Edit Exam" else "Add Exam",
             fontSize = 32.sp,
             fontWeight = FontWeight.Bold,
             color = MaterialTheme.colorScheme.primary
         )
         Text(
-            text = "Track your upcoming exams",
+            text = if (editingExam != null) "Update your exam details" else "Track your upcoming exams",
             fontSize = 16.sp,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
@@ -134,9 +139,33 @@ fun AddExamScreen(viewModel: StudyMateViewModel, onBack: () -> Unit) {
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            TimeBox(startTime, Modifier.weight(1f)) { startTime = it }
+            // Manual typing for start time
+            OutlinedTextField(
+                value = startTime,
+                onValueChange = { startTime = it },
+                modifier = Modifier.weight(1f),
+                shape = RoundedCornerShape(12.dp),
+                placeholder = { Text("e.g. 09:00 AM") },
+                textStyle = androidx.compose.ui.text.TextStyle(textAlign = androidx.compose.ui.text.style.TextAlign.Center, fontWeight = FontWeight.Bold),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = MaterialTheme.colorScheme.primary,
+                    unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant
+                )
+            )
             Text("→", color = MaterialTheme.colorScheme.onSurfaceVariant)
-            TimeBox(endTime, Modifier.weight(1f)) { endTime = it }
+            // Manual typing for end time
+            OutlinedTextField(
+                value = endTime,
+                onValueChange = { endTime = it },
+                modifier = Modifier.weight(1f),
+                shape = RoundedCornerShape(12.dp),
+                placeholder = { Text("e.g. 11:00 AM") },
+                textStyle = androidx.compose.ui.text.TextStyle(textAlign = androidx.compose.ui.text.style.TextAlign.Center, fontWeight = FontWeight.Bold),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = MaterialTheme.colorScheme.primary,
+                    unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant
+                )
+            )
         }
 
         Spacer(modifier = Modifier.height(20.dp))
@@ -181,7 +210,18 @@ fun AddExamScreen(viewModel: StudyMateViewModel, onBack: () -> Unit) {
         Button(
             onClick = {
                 if (subject.isNotEmpty()) {
-                    viewModel.addExam(Exam(subject, examType, examDate, startTime, endTime, venue))
+                    viewModel.addExam(
+                        ExamEntity(
+                            id = editingExam?.id ?: 0,
+                            subject = subject,
+                            type = examType,
+                            date = examDate,
+                            startTime = startTime,
+                            endTime = endTime,
+                            venue = venue
+                        )
+                    )
+                    viewModel.editingExam = null
                     onBack()
                 }
             },
@@ -195,7 +235,10 @@ fun AddExamScreen(viewModel: StudyMateViewModel, onBack: () -> Unit) {
         Spacer(modifier = Modifier.height(12.dp))
 
         OutlinedButton(
-            onClick = { onBack() },
+            onClick = { 
+                viewModel.editingExam = null
+                onBack() 
+            },
             modifier = Modifier.fillMaxWidth().height(56.dp),
             shape = RoundedCornerShape(16.dp),
             border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.3f))
@@ -231,27 +274,4 @@ fun ExamTypeChip(label: String, emoji: String, isSelected: Boolean, onClick: () 
             )
         }
     }
-}
-
-@Composable
-fun TimeBox(time: String, modifier: Modifier, onValueChange: (String) -> Unit) {
-    var text by remember { mutableStateOf(time) }
-    OutlinedTextField(
-        value = text,
-        onValueChange = { 
-            text = it
-            onValueChange(it)
-        },
-        modifier = modifier,
-        shape = RoundedCornerShape(12.dp),
-        textStyle = androidx.compose.ui.text.TextStyle(
-            textAlign = androidx.compose.ui.text.style.TextAlign.Center, 
-            fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.onSurface
-        ),
-        colors = OutlinedTextFieldDefaults.colors(
-            focusedBorderColor = MaterialTheme.colorScheme.primary,
-            unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant
-        )
-    )
 }

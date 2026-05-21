@@ -35,7 +35,7 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
-fun StudyMateApp(viewModel: StudyMateViewModel = viewModel()) {
+fun StudyMateApp(viewModel: StudyMateViewModel = viewModel(factory = StudyMateViewModel.Factory)) {
     val navController = rememberNavController()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentDestination = navBackStackEntry?.destination?.route
@@ -60,7 +60,13 @@ fun StudyMateApp(viewModel: StudyMateViewModel = viewModel()) {
             }
             composable(Screen.History.route) {
                 Column(Modifier.fillMaxSize().padding(horizontal = 24.dp).verticalScroll(rememberScrollState())) {
-                    HistoryScreen(glassBg, glassBorder, viewModel)
+                    HistoryScreen(
+                        liquidGlassBg = glassBg, 
+                        liquidGlassBorder = glassBorder, 
+                        viewModel = viewModel,
+                        onEditTask = { navController.navigate(Screen.AddTask.route) },
+                        onEditExam = { navController.navigate(Screen.AddExam.route) }
+                    )
                     Box(Modifier.height(160.dp))
                 }
             }

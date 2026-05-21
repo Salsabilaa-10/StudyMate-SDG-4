@@ -183,7 +183,7 @@ fun HomeScreen(
                                     .background(examAccent)
                             )
                             
-                            Column(modifier = Modifier.padding(start = 16.dp)) {
+                            Column(modifier = Modifier.padding(start = 16.dp).weight(1f)) {
                                 Text(
                                     text = "Upcoming Exam", 
                                     color = examAccent, 
@@ -279,7 +279,7 @@ fun HomeScreen(
                                 Text(text = label, color = pillColor, fontSize = 10.sp, fontWeight = FontWeight.Bold)
                             }
                             Spacer(modifier = Modifier.width(12.dp))
-                            Column {
+                            Column(modifier = Modifier.weight(1f)) {
                                 Text(text = task.title, color = textPrimary, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
                                 if (task.dueTime.isNotBlank()) {
                                     Text(text = task.dueTime, color = textSecondary, fontSize = 11.sp)
