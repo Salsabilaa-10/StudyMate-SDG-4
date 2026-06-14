@@ -1,7 +1,6 @@
 package com.example.a207945_salsabilaa_izwan_lab3
 
-import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.background
+import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -22,9 +21,46 @@ fun ProfileScreen(
     viewModel: StudyMateViewModel // Added ViewModel parameter
 ) {
     val userData by viewModel.userData.collectAsState() // Observe ViewModel state
+    val isDarkModePref by viewModel.isDarkMode.collectAsState()
+    val notificationsEnabled by viewModel.notificationsEnabled.collectAsState()
+    val systemInDark = isSystemInDarkTheme()
+    
+    // Effective dark mode value
+    val darkThemeEnabled = isDarkModePref ?: systemInDark
 
     val textPrimary = MaterialTheme.colorScheme.onBackground
     val textSecondary = MaterialTheme.colorScheme.onSurfaceVariant
+
+    // Edit Profile Dialog State
+    var showEditDialog by remember { mutableStateOf(false) }
+    var editName by remember { mutableStateOf(userData.name) }
+    var editMatric by remember { mutableStateOf(userData.matricNo) }
+    var editFaculty by remember { mutableStateOf(userData.faculty) }
+    var editCourse by remember { mutableStateOf(userData.course) }
+
+    if (showEditDialog) {
+        AlertDialog(
+            onDismissRequest = { showEditDialog = false },
+            title = { Text("Edit Profile", fontWeight = FontWeight.Bold) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    OutlinedTextField(value = editName, onValueChange = { editName = it }, label = { Text("Name") })
+                    OutlinedTextField(value = editMatric, onValueChange = { editMatric = it }, label = { Text("Matric No") })
+                    OutlinedTextField(value = editFaculty, onValueChange = { editFaculty = it }, label = { Text("Faculty") })
+                    OutlinedTextField(value = editCourse, onValueChange = { editCourse = it }, label = { Text("Course") })
+                }
+            },
+            confirmButton = {
+                Button(onClick = {
+                    viewModel.updateUserData(editName, editMatric, editFaculty, editCourse)
+                    showEditDialog = false
+                }) { Text("Save") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showEditDialog = false }) { Text("Cancel") }
+            }
+        )
+    }
 
     Column(modifier = Modifier.padding(top = 60.dp)) {
         Text(text = "Profile", color = textPrimary, fontSize = 28.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(bottom = 24.dp))
@@ -82,11 +118,24 @@ fun ProfileScreen(
             border = BorderStroke(1.2.dp, liquidGlassBorder)
         ) {
             Column(modifier = Modifier.padding(16.dp)) {
-                SettingToggleRow("Dark mode", false)
+                SettingToggleRow("Dark mode", darkThemeEnabled) { viewModel.setDarkMode(it) }
                 HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp), thickness = 0.5.dp, color = MaterialTheme.colorScheme.outlineVariant)
-                SettingToggleRow("Notifications", true)
+                SettingToggleRow("Notifications", notificationsEnabled) { viewModel.setNotificationsEnabled(it) }
                 HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp), thickness = 0.5.dp, color = MaterialTheme.colorScheme.outlineVariant)
-                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { 
+                            editName = userData.name
+                            editMatric = userData.matricNo
+                            editFaculty = userData.faculty
+                            editCourse = userData.course
+                            showEditDialog = true 
+                        }
+                        .padding(vertical = 4.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween, 
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
                     Text(text = "Edit profile", color = textPrimary, fontSize = 15.sp)
                     Text(text = "›", color = textSecondary, fontSize = 20.sp)
                 }
@@ -104,13 +153,12 @@ fun InfoRow(label: String, value: String) {
 }
 
 @Composable
-fun SettingToggleRow(label: String, checked: Boolean) {
-    var isChecked by remember { mutableStateOf(checked) }
+fun SettingToggleRow(label: String, checked: Boolean, onCheckedChange: (Boolean) -> Unit) {
     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
         Text(text = label, color = MaterialTheme.colorScheme.onSurface, fontSize = 15.sp)
         Switch(
-            checked = isChecked,
-            onCheckedChange = { isChecked = it },
+            checked = checked,
+            onCheckedChange = onCheckedChange,
             colors = SwitchDefaults.colors(
                 checkedThumbColor = MaterialTheme.colorScheme.onPrimary,
                 checkedTrackColor = MaterialTheme.colorScheme.primary,

@@ -5,7 +5,7 @@ import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
 
-@Database(entities = [AssignmentEntity::class, ExamEntity::class], version = 1, exportSchema = false)
+@Database(entities = [AssignmentEntity::class, ExamEntity::class, ClassEntity::class, FlashcardEntity::class, ChatMessageEntity::class, ChatSessionEntity::class], version = 4, exportSchema = false)
 abstract class StudyDatabase : RoomDatabase() {
     abstract fun assignmentDao(): AssignmentDao
 
@@ -19,7 +19,9 @@ abstract class StudyDatabase : RoomDatabase() {
                     context.applicationContext,
                     StudyDatabase::class.java,
                     "study_database"
-                ).build()
+                )
+                    .fallbackToDestructiveMigration(dropAllTables = true)
+                    .build()
                 INSTANCE = instance
                 instance
             }

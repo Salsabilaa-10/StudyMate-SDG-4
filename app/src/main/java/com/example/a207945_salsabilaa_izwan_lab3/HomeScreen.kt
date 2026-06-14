@@ -37,11 +37,15 @@ fun HomeScreen(
     liquidGlassBorder: Brush, 
     viewModel: StudyMateViewModel, // Added ViewModel parameter
     onAddTaskClick: () -> Unit = {}, // Added callback
-    onAddExamClick: () -> Unit = {} // Added callback
+    onAddExamClick: () -> Unit = {}, // Added callback
+    onAddClassClick: () -> Unit = {}, // Added callback
+    onFlashcardClick: () -> Unit = {}, // Added callback
+    onSearch: (String) -> Unit = {} // Added callback for AI search
 ) {
     val userData by viewModel.userData.collectAsState() // Observe ViewModel state
     val tasks by viewModel.tasks.collectAsState() // Observe tasks
     val exams by viewModel.exams.collectAsState() // Observe exams
+    val classes by viewModel.classes.collectAsState() // Observe classes
 
     val textPrimary = MaterialTheme.colorScheme.onBackground
     val textSecondary = MaterialTheme.colorScheme.onSurfaceVariant
@@ -52,20 +56,21 @@ fun HomeScreen(
     val classAccent = MaterialTheme.colorScheme.secondary
     val assignmentAccent = MaterialTheme.colorScheme.tertiary
 
+    // State for selected date
+    var selectedDate by remember { mutableStateOf(Calendar.getInstance().time) }
+    
     // Dynamic Date Logic using Calendar (Safe for API 24)
     val calendar = Calendar.getInstance()
-    val dateFormatter = SimpleDateFormat("EEEE, MMM d", Locale.getDefault())
-    val formattedDate = dateFormatter.format(calendar.time)
+    val headerDateFormatter = SimpleDateFormat("EEEE, MMM d", Locale.getDefault())
+    val formattedDate = headerDateFormatter.format(selectedDate)
 
     // Calculate current week (Monday to Sunday)
-    val todayDate = calendar.get(Calendar.DATE)
-    val todayMonth = calendar.get(Calendar.MONTH)
-    val todayYear = calendar.get(Calendar.YEAR)
-
-    // Set to Monday of current week
-    calendar.set(Calendar.DAY_OF_WEEK, Calendar.MONDAY)
+    val weekCalendar = Calendar.getInstance()
+    weekCalendar.set(Calendar.DAY_OF_WEEK, Calendar.MONDAY)
+    
     val weekDays = (0..6).map { _ ->
-        val dayName = when (calendar.get(Calendar.DAY_OF_WEEK)) {
+        val d = weekCalendar.time
+        val dayName = when (weekCalendar.get(Calendar.DAY_OF_WEEK)) {
             Calendar.MONDAY -> "M"
             Calendar.TUESDAY -> "T"
             Calendar.WEDNESDAY -> "W"
@@ -75,14 +80,17 @@ fun HomeScreen(
             Calendar.SUNDAY -> "S"
             else -> ""
         }
-        val dayDate = calendar.get(Calendar.DATE).toString()
-        val isToday = calendar.get(Calendar.DATE) == todayDate && 
-                      calendar.get(Calendar.MONTH) == todayMonth && 
-                      calendar.get(Calendar.YEAR) == todayYear
+        val dayDate = weekCalendar.get(Calendar.DATE).toString()
         
-        val result = Triple(dayName, dayDate, isToday)
-        calendar.add(Calendar.DATE, 1)
+        val result = Triple(dayName, dayDate, d)
+        weekCalendar.add(Calendar.DATE, 1)
         result
+    }
+
+    // Filter Classes based on the selected day name
+    val selectedDayName = SimpleDateFormat("EEEE", Locale.getDefault()).format(selectedDate)
+    val filteredClasses = remember(classes, selectedDayName) {
+        classes.filter { it.day.equals(selectedDayName, ignoreCase = true) }
     }
 
     Column {
@@ -98,13 +106,6 @@ fun HomeScreen(
                 Text(text = userData.name, color = textPrimary, fontSize = 24.sp, fontWeight = FontWeight.Bold)
             }
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Box(
-                    modifier = Modifier.padding(end = 12.dp).clip(RoundedCornerShape(15.dp))
-                        .background(liquidGlassBg).border(1.2.dp, liquidGlassBorder, RoundedCornerShape(15.dp))
-                        .padding(horizontal = 8.dp, vertical = 5.dp)
-                ) {
-                    Text(text = "☀️ 🌙", fontSize = 12.sp)
-                }
                 Box(
                     modifier = Modifier
                         .size(45.dp)
@@ -130,8 +131,11 @@ fun HomeScreen(
         ) {
             Text(text = formattedDate, color = textPrimary, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
             Box(
-                modifier = Modifier.clip(RoundedCornerShape(20.dp)).background(liquidGlassBg)
+                modifier = Modifier
+                    .clip(RoundedCornerShape(20.dp))
+                    .background(liquidGlassBg)
                     .border(1.2.dp, liquidGlassBorder, RoundedCornerShape(20.dp))
+                    .clickable { selectedDate = Calendar.getInstance().time }
                     .padding(horizontal = 14.dp, vertical = 6.dp)
             ) {
                 Text(text = "Today", color = textPrimary, fontSize = 12.sp, fontWeight = FontWeight.Medium)
@@ -143,16 +147,20 @@ fun HomeScreen(
             modifier = Modifier.fillMaxWidth().padding(bottom = 20.dp).horizontalScroll(rememberScrollState()),
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            weekDays.forEach { (day, date, isToday) ->
+            weekDays.forEach { (day, date, d) ->
+                val sdf = SimpleDateFormat("yyyyMMdd", Locale.getDefault())
+                val isSelected = sdf.format(d) == sdf.format(selectedDate)
+                
                 Box(
                     modifier = Modifier.width(42.dp).height(65.dp).clip(RoundedCornerShape(12.dp))
-                        .background(if (isToday) SolidColor(MaterialTheme.colorScheme.primary.copy(alpha = 0.2f)) else liquidGlassBg)
-                        .border(1.2.dp, if (isToday) SolidColor(MaterialTheme.colorScheme.primary) else liquidGlassBorder, RoundedCornerShape(12.dp)),
+                        .background(if (isSelected) SolidColor(MaterialTheme.colorScheme.primary.copy(alpha = 0.2f)) else liquidGlassBg)
+                        .border(1.2.dp, if (isSelected) SolidColor(MaterialTheme.colorScheme.primary) else liquidGlassBorder, RoundedCornerShape(12.dp))
+                        .clickable { selectedDate = d },
                     contentAlignment = Alignment.Center
                 ) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text(text = day, color = if (isToday) MaterialTheme.colorScheme.primary else textSecondary, fontSize = 12.sp)
-                        Text(text = date, color = if (isToday) MaterialTheme.colorScheme.primary else textPrimary, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                        Text(text = day, color = if (isSelected) MaterialTheme.colorScheme.primary else textSecondary, fontSize = 12.sp)
+                        Text(text = date, color = if (isSelected) MaterialTheme.colorScheme.primary else textPrimary, fontSize = 14.sp, fontWeight = FontWeight.Bold)
                     }
                 }
             }
@@ -215,7 +223,40 @@ fun HomeScreen(
                 border = liquidGlassBorder
             )
         }
-        InfoCardItem("Today's Clases", "No clases today", classAccent, MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.75f), liquidGlassBorder)
+        InfoCardItem(
+            title = "Today's Classes",
+            subtitle = if (filteredClasses.isEmpty()) "No classes scheduled" else "${filteredClasses.size} classes scheduled", 
+            accent = classAccent, 
+            bg = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.75f), 
+            border = liquidGlassBorder,
+            initiallyExpanded = filteredClasses.isNotEmpty(),
+            content = {
+                if (filteredClasses.isNotEmpty()) {
+                    filteredClasses.forEach { classItem ->
+                        Row(
+                            modifier = Modifier.padding(top = 10.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .background(MaterialTheme.colorScheme.secondary.copy(alpha = 0.1f))
+                                    .padding(horizontal = 12.dp, vertical = 5.dp)
+                            ) {
+                                Text(text = classItem.day.take(1), color = MaterialTheme.colorScheme.secondary, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                            }
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Column {
+                                Text(text = classItem.className, color = textPrimary, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+                                Text(text = "${classItem.startTime} - ${classItem.endTime} | ${classItem.venue}", color = textSecondary, fontSize = 11.sp)
+                            }
+                        }
+                    }
+                } else {
+                    Text(text = "No classes for today.", modifier = Modifier.padding(top = 8.dp), fontSize = 12.sp, color = textSecondary)
+                }
+            }
+        )
         
         InfoCardItem(
             title = "Upcoming Assignments", 
@@ -300,14 +341,20 @@ fun HomeScreen(
 
         // Action Boxes
         Row(modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp)) {
-            ActionBox("📚", "AI Flashcard", MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.85f), liquidGlassBorder, Modifier.weight(1f).padding(end = 8.dp))
+            ActionBox(
+                "📚", "AI Flashcard", MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.85f), liquidGlassBorder, 
+                Modifier.weight(1f).padding(end = 8.dp).clickable { onFlashcardClick() }
+            )
             ActionBox(
                 "📝", "Add Exam", MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.85f), liquidGlassBorder, 
                 Modifier.weight(1f).padding(start = 8.dp).clickable { onAddExamClick() }
             )
         }
         Row(modifier = Modifier.fillMaxWidth().padding(bottom = 20.dp)) {
-            ActionBox("🏫", "Add Class", MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.85f), liquidGlassBorder, Modifier.weight(1f).padding(end = 8.dp))
+            ActionBox(
+                "🏫", "Add Class", MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.85f), liquidGlassBorder, 
+                Modifier.weight(1f).padding(end = 8.dp).clickable { onAddClassClick() }
+            )
             ActionBox(
                 "📌", "Add Task", MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.85f), liquidGlassBorder, 
                 Modifier.weight(1f).padding(start = 8.dp).clickable { onAddTaskClick() }
@@ -344,7 +391,7 @@ fun HomeScreen(
                         .background(MaterialTheme.colorScheme.surfaceVariant)
                         .clickable {
                             if (searchQuery.isNotEmpty()) {
-                                displayedMessage = searchQuery
+                                onSearch(searchQuery)
                                 searchQuery = ""
                             }
                         },

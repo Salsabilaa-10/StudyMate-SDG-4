@@ -29,10 +29,16 @@ fun HistoryScreen(
     liquidGlassBorder: Brush,
     viewModel: StudyMateViewModel,
     onEditTask: () -> Unit = {},
-    onEditExam: () -> Unit = {}
+    onEditExam: () -> Unit = {},
+    onEditClass: () -> Unit = {},
+    onChatClick: () -> Unit = {}
 ) {
     val tasks by viewModel.tasks.collectAsState() // Observe tasks
     val exams by viewModel.exams.collectAsState() // Observe exams
+    val classes by viewModel.classes.collectAsState() // Observe classes
+    val flashcards by viewModel.flashcards.collectAsState() // Observe flashcards
+    val chatSessions by viewModel.chatSessions.collectAsState() // Observe chat sessions
+    
     val textPrimary = MaterialTheme.colorScheme.onBackground
     val textSecondary = MaterialTheme.colorScheme.onSurfaceVariant
     var selectedFilter by remember { mutableStateOf("All") }
@@ -51,9 +57,9 @@ fun HistoryScreen(
         ) {
             StatCard(tasks.size.toString(), "Tasks", Modifier.width(100.dp), liquidGlassBorder)
             StatCard(exams.size.toString(), "Exams", Modifier.width(100.dp), liquidGlassBorder)
-            StatCard("5", "AI Chat", Modifier.width(100.dp), liquidGlassBorder)
-            StatCard("12", "Flashcards", Modifier.width(100.dp), liquidGlassBorder)
-            StatCard("0", "Classes", Modifier.width(100.dp), liquidGlassBorder)
+            StatCard(flashcards.size.toString(), "Cards", Modifier.width(100.dp), liquidGlassBorder)
+            StatCard(chatSessions.size.toString(), "AI Chat", Modifier.width(100.dp), liquidGlassBorder)
+            StatCard(classes.size.toString(), "Classes", Modifier.width(100.dp), liquidGlassBorder)
         }
 
         // Filters
@@ -74,7 +80,7 @@ fun HistoryScreen(
             border = BorderStroke(1.dp, liquidGlassBorder)
         ) {
             Column {
-                val combinedHistory = remember(tasks, exams, selectedFilter) {
+                val combinedHistory = remember(tasks, exams, classes, flashcards, chatSessions, selectedFilter) {
                     val list = mutableListOf<HistoryItem>()
                     
                     // Add Tasks
@@ -87,15 +93,24 @@ fun HistoryScreen(
                         exams.forEach { list.add(HistoryItem(it.subject, "${it.date} · Exam added", "Exam", originalExam = it)) }
                     }
 
-                    // Mock data for other categories
-                    if (selectedFilter == "All" || selectedFilter == "AI Flashcard") {
-                        list.add(HistoryItem("Data Structures", "Today · 20 cards generated", "AI Flashcard"))
+                    // Add Classes
+                    if (selectedFilter == "All" || selectedFilter == "Class") {
+                        classes.forEach { list.add(HistoryItem(it.className, "${it.day} · ${it.startTime}", "Class", originalClass = it)) }
                     }
+
+                    // Add Flashcards
+                    if (selectedFilter == "All" || selectedFilter == "AI Flashcard") {
+                        flashcards.forEach { list.add(HistoryItem(it.topic, "AI Flashcard · ${it.question.take(20)}...", "AI Flashcard", originalFlashcard = it)) }
+                    }
+
+                    // Real data for AI Chat sessions
                     if (selectedFilter == "All" || selectedFilter == "AI Chat") {
-                        list.add(HistoryItem("Explain Binary Search", "Yesterday · AI Chat", "AI Chat"))
+                        chatSessions.forEach { 
+                            list.add(HistoryItem(it.title, "AI Study Assistant Chat", "AI Chat", originalSession = it))
+                        }
                     }
                     
-                    list.reversed() 
+                    list
                 }
 
                 if (combinedHistory.isEmpty()) {
@@ -136,6 +151,12 @@ fun HistoryScreen(
                                 } else if (item.originalExam != null) {
                                     viewModel.editingExam = item.originalExam
                                     onEditExam()
+                                } else if (item.originalClass != null) {
+                                    viewModel.editingClass = item.originalClass
+                                    onEditClass()
+                                } else if (item.originalSession != null) {
+                                    viewModel.selectSession(item.originalSession.id)
+                                    onChatClick()
                                 }
                             },
                             onDelete = {
@@ -143,6 +164,12 @@ fun HistoryScreen(
                                     viewModel.deleteTask(item.originalAssignment)
                                 } else if (item.originalExam != null) {
                                     viewModel.deleteExam(item.originalExam)
+                                } else if (item.originalClass != null) {
+                                    viewModel.deleteClass(item.originalClass)
+                                } else if (item.originalFlashcard != null) {
+                                    viewModel.deleteFlashcard(item.originalFlashcard)
+                                } else if (item.originalSession != null) {
+                                    viewModel.deleteSession(item.originalSession.id)
                                 }
                             }
                         )
@@ -158,7 +185,10 @@ data class HistoryItem(
     val subtitle: String,
     val type: String,
     val originalAssignment: AssignmentEntity? = null,
-    val originalExam: ExamEntity? = null
+    val originalExam: ExamEntity? = null,
+    val originalClass: ClassEntity? = null,
+    val originalFlashcard: FlashcardEntity? = null,
+    val originalSession: ChatSessionEntity? = null
 )
 
 @Composable
@@ -173,7 +203,7 @@ fun HistoryItemRow(
     onDelete: () -> Unit = {}
 ) {
     Column {
-        Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+        Row(modifier = Modifier.padding(16.dp).clickable { onEdit() }, verticalAlignment = Alignment.CenterVertically) {
             Box(
                 modifier = Modifier.size(50.dp).clip(RoundedCornerShape(14.dp)).background(badgeBg.copy(alpha = 0.3f)),
                 contentAlignment = Alignment.Center
@@ -181,16 +211,18 @@ fun HistoryItemRow(
                 Text(text = emoji, fontSize = 22.sp)
             }
             Column(modifier = Modifier.padding(start = 16.dp).weight(1f)) {
-                Text(text = title, color = MaterialTheme.colorScheme.onSurface, fontSize = 16.sp, fontWeight = FontWeight.Bold)
-                Text(text = subtitle, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 13.sp)
+                Text(text = title, color = MaterialTheme.colorScheme.onSurface, fontSize = 16.sp, fontWeight = FontWeight.Bold, maxLines = 1)
+                Text(text = subtitle, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 13.sp, maxLines = 1)
             }
             
-            // Action Buttons (Only for Task and Exam types which have real entities)
-            if (type == "Task" || type == "Exam") {
+            // Action Buttons
+            if (type == "Task" || type == "Exam" || type == "Class") {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text("✏️", modifier = Modifier.clickable { onEdit() }.padding(8.dp))
                     Text("🗑️", modifier = Modifier.clickable { onDelete() }.padding(8.dp))
                 }
+            } else if (type == "AI Flashcard" || type == "AI Chat") {
+                Text("🗑️", modifier = Modifier.clickable { onDelete() }.padding(8.dp))
             }
 
             Box(
