@@ -49,11 +49,6 @@ The application aligns with **SDG 4: Quality Education** by providing accessible
    - Open the project in Android Studio (Ladybug or newer).
    - Sync Gradle and run on an emulator or physical device.
 
-## 📱 Screenshots
-
-| Home Screen | AI Chat | Flashcards |
-| :---: | :---: | :---: |
-| _[Add Screenshot]_ | _[Add Screenshot]_ | _[Add Screenshot]_ |
 
 ---
 
