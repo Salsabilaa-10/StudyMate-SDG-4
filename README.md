@@ -7,7 +7,7 @@ The application aligns with **SDG 4: Quality Education** by providing accessible
 ## ✨ Features
 
 ### 🤖 AI Learning Assistant
-- **Intelligent Chat:** Powered by Groq (Llama 3.3), providing instant answers to academic queries.
+- **Intelligent Chat:** Powered by OpenRouter, providing instant answers to academic queries.
 - **Vision Capabilities:** Upload images (diagrams, notes) for AI analysis using Llama 3.2 Vision.
 - **Persistent History:** Chat sessions are saved locally using Room for future reference.
 
