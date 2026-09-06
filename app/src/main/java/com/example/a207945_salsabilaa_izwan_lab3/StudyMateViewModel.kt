@@ -24,6 +24,8 @@ import org.json.JSONArray
 import org.json.JSONObject
 import java.net.HttpURLConnection
 import java.net.URL
+import android.graphics.BitmapFactory
+import android.util.Base64
 
 data class UserData(
     val name: String,
@@ -118,9 +120,8 @@ class StudyMateViewModel(private val repository: AssignmentRepository) : ViewMod
     private val _sharedDecks = MutableStateFlow<List<SharedFlashcardDeck>>(emptyList())
     val sharedDecks: StateFlow<List<SharedFlashcardDeck>> = _sharedDecks.asStateFlow()
 
-    // GROQ API KEY
-    private val apiKey = "YOUR_API_KEY_HERE"
-
+    // GEMINI API KEY
+    private val apiKey = ""
 
     fun selectSession(sessionId: Int) {
         _currentSessionId.value = sessionId
@@ -155,9 +156,9 @@ class StudyMateViewModel(private val repository: AssignmentRepository) : ViewMod
             try {
                 // 3. Call AI API
                 val responseText = if (base64Image != null) {
-                    callGroqVisionApi(prompt, base64Image)
+                    callopenRouterVisionApi(prompt, base64Image)
                 } else {
-                    callGroqApi(prompt)
+                    callopenRouterApi(prompt)
                 }
 
                 // 4. Save assistant response to database
@@ -176,17 +177,17 @@ class StudyMateViewModel(private val repository: AssignmentRepository) : ViewMod
         }
     }
 
-    private suspend fun callGroqApi(prompt: String): String = withContext(Dispatchers.IO) {
-        val url = URL("https://api.groq.com/openai/v1/chat/completions")
+    private suspend fun callopenRouterApi(prompt: String): String = withContext(Dispatchers.IO) {
+        val url = URL("https://openrouter.ai/api/v1/chat/completions")
         val connection = url.openConnection() as HttpURLConnection
-        
+
         connection.requestMethod = "POST"
         connection.setRequestProperty("Content-Type", "application/json")
         connection.setRequestProperty("Authorization", "Bearer $apiKey")
         connection.doOutput = true
 
         val requestBody = JSONObject().apply {
-            put("model", "llama-3.3-70b-versatile")
+            put("model", "openrouter/free")
             put("messages", JSONArray().apply {
                 put(JSONObject().apply {
                     put("role", "user")
@@ -197,31 +198,30 @@ class StudyMateViewModel(private val repository: AssignmentRepository) : ViewMod
 
         connection.outputStream.use { it.write(requestBody.toString().toByteArray()) }
 
-        val responseCode = connection.responseCode
-        if (responseCode == HttpURLConnection.HTTP_OK) {
+        if (connection.responseCode == HttpURLConnection.HTTP_OK) {
             val responseString = connection.inputStream.bufferedReader().readText()
-            val jsonResponse = JSONObject(responseString)
-            jsonResponse.getJSONArray("choices")
+            JSONObject(responseString)
+                .getJSONArray("choices")
                 .getJSONObject(0)
                 .getJSONObject("message")
                 .getString("content")
         } else {
-            val errorString = connection.errorStream?.bufferedReader()?.readText() ?: "Unknown Error"
-            "Server Error ($responseCode): $errorString"
+            val error = connection.errorStream?.bufferedReader()?.readText() ?: "Unknown Error"
+            " Error (${connection.responseCode}): $error"
         }
     }
 
-    private suspend fun callGroqVisionApi(prompt: String, base64Image: String): String = withContext(Dispatchers.IO) {
-        val url = URL("https://api.groq.com/openai/v1/chat/completions")
+    private suspend fun callopenRouterVisionApi(prompt: String, base64Image: String): String = withContext(Dispatchers.IO) {
+        val url = URL("https://openrouter.ai/api/v1/chat/completions")
         val connection = url.openConnection() as HttpURLConnection
-        
+
         connection.requestMethod = "POST"
         connection.setRequestProperty("Content-Type", "application/json")
         connection.setRequestProperty("Authorization", "Bearer $apiKey")
         connection.doOutput = true
 
         val requestBody = JSONObject().apply {
-            put("model", "llama-3.2-11b-vision-preview")
+            put("model", "openrouter/free")
             put("messages", JSONArray().apply {
                 put(JSONObject().apply {
                     put("role", "user")
@@ -243,17 +243,16 @@ class StudyMateViewModel(private val repository: AssignmentRepository) : ViewMod
 
         connection.outputStream.use { it.write(requestBody.toString().toByteArray()) }
 
-        val responseCode = connection.responseCode
-        if (responseCode == HttpURLConnection.HTTP_OK) {
+        if (connection.responseCode == HttpURLConnection.HTTP_OK) {
             val responseString = connection.inputStream.bufferedReader().readText()
-            val jsonResponse = JSONObject(responseString)
-            jsonResponse.getJSONArray("choices")
+            JSONObject(responseString)
+                .getJSONArray("choices")
                 .getJSONObject(0)
                 .getJSONObject("message")
                 .getString("content")
         } else {
-            val errorString = connection.errorStream?.bufferedReader()?.readText() ?: "Unknown Error"
-            "Vision Error ($responseCode): $errorString"
+            val error = connection.errorStream?.bufferedReader()?.readText() ?: "Unknown Error"
+            " Vision Error (${connection.responseCode}): $error"
         }
     }
 
@@ -380,7 +379,7 @@ class StudyMateViewModel(private val repository: AssignmentRepository) : ViewMod
                     Example: [{"question": "What is Kotlin?", "answer": "A modern programming language."}]
                 """.trimIndent()
 
-                val response = callGroqApi(prompt)
+                val response = callopenRouterApi(prompt)
                 val jsonArray = JSONArray(response.substringAfter("[").substringBeforeLast("]") .let { "[$it]" })
                 
                 for (i in 0 until jsonArray.length()) {
